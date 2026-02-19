@@ -3,9 +3,18 @@ version: '3.4'
 services:
   new-api:
     # 既然你本地有源码且经常修改，用 build 模式最聪明
-    build: . 
+    build:
+      context: .
+      args:
+        # 使用 gmk-g3 替代 IP 地址，指向你的 Clash 代理端口
+        - http_proxy=http://gmk-g3:7890
+        - https_proxy=http://gmk-g3:7890
+      extra_hosts:
+        - "gmk-g3:host-gateway"
     container_name: NewAPI
     restart: always
+    extra_hosts:
+      - "gmk-g3:host-gateway"
     command: --log-dir /app/logs
     ports:
       - "3000:3000"
@@ -14,7 +23,7 @@ services:
       - ./logs:/app/logs
     environment:
       # 【核心配置】确保密码正确，gmk-g3 指向你的宿主机
-      - SQL_DSN=root:你的密码@tcp(gmk-g3:3306)/newapi?charset=utf8mb4&parseTime=True&loc=Local
+      - SQL_DSN=root:1zjkppqy1@tcp(gmk-g3:3306)/newapi?charset=utf8mb4&parseTime=True&loc=Local
       - REDIS_CONN_STRING=redis://redis
       - DATABASE_TYPE=mysql
       - TZ=Asia/Shanghai
