@@ -604,6 +604,20 @@ func testAllChannels(notify bool) error {
 				}
 			}
 
+			// 获取静态权重
+			staticWeight := channel.GetWeight()
+			if staticWeight == 0 {
+				staticWeight = 100
+			}
+
+			// 更新动态权重
+			if newAPIError != nil {
+				shouldPenalize := service.ShouldPenalizeError(newAPIError)
+				model.OnChannelFailure(channel.Id, channel.Name, int(staticWeight), shouldPenalize)
+			} else {
+				model.OnChannelSuccess(channel.Id, channel.Name, int(staticWeight))
+			}
+
 			// disable channel
 			if isChannelEnabled && shouldBanChannel && channel.GetAutoBan() {
 				processChannelError(result.context, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(result.context, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)

@@ -60,6 +60,7 @@ export const useSidebar = () => {
     admin: {
       enabled: true,
       channel: true,
+      dynamicWeight: true,
       models: true,
       deployment: true,
       redemption: true,
@@ -68,12 +69,26 @@ export const useSidebar = () => {
     },
   };
 
-  // 获取管理员配置
+  // 获取管理员配置（与默认配置合并，确保新增模块自动可见）
   const adminConfig = useMemo(() => {
     if (statusState?.status?.SidebarModulesAdmin) {
       try {
         const config = JSON.parse(statusState.status.SidebarModulesAdmin);
-        return config;
+        // 将服务器配置与默认配置合并，新增的模块使用默认值
+        const merged = {};
+        Object.keys(defaultAdminConfig).forEach((sectionKey) => {
+          merged[sectionKey] = {
+            ...defaultAdminConfig[sectionKey],
+            ...(config[sectionKey] || {}),
+          };
+        });
+        // 保留服务器配置中可能存在的额外section
+        Object.keys(config).forEach((sectionKey) => {
+          if (!merged[sectionKey]) {
+            merged[sectionKey] = config[sectionKey];
+          }
+        });
+        return merged;
       } catch (error) {
         return defaultAdminConfig;
       }

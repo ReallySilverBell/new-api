@@ -98,6 +98,66 @@ func ShouldDisableChannel(channelType int, err *types.NewAPIError) bool {
 	return search
 }
 
+// ShouldPenalizeError 判断错误是否应该惩罚（降低动态权重）
+func ShouldPenalizeError(err *types.NewAPIError) bool {
+	if err == nil {
+		return false
+	}
+
+	// 应该惩罚的错误（临时性问题）
+	// 429 Too Many Requests
+	if err.StatusCode == http.StatusTooManyRequests {
+		return true
+	}
+
+	// 5xx 服务器错误（除了超时）
+	if err.StatusCode/100 == 5 {
+		// 超时不惩罚（504, 524）
+		if err.StatusCode == 504 || err.StatusCode == 524 {
+			return false
+		}
+		return true
+	}
+
+	// 检查错误代码
+	oaiErr := err.ToOpenAIError()
+	switch oaiErr.Code {
+	case "rate_limit_exceeded":
+		return true
+	case "server_error":
+		return true
+	case "timeout":
+		return false
+	}
+
+	// 检查错误类型
+	switch oaiErr.Type {
+	case "server_error":
+		return true
+	case "rate_limit_error":
+		return true
+	}
+
+	// 检查错误消息
+	lowerMessage := strings.ToLower(err.Error())
+	penalizeKeywords := []string{
+		"timeout",
+		"connection",
+		"rate limit",
+		"too many requests",
+		"overloaded",
+		"response_time_exceeded",
+	}
+
+	for _, keyword := range penalizeKeywords {
+		if strings.Contains(lowerMessage, keyword) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func ShouldEnableChannel(newAPIError *types.NewAPIError, status int) bool {
 	if !common.AutomaticEnableChannelEnabled {
 		return false

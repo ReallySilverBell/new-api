@@ -160,6 +160,12 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.GET("/tag/models", controller.GetTagModels)
 			channelRoute.POST("/copy/:id", controller.CopyChannel)
 			channelRoute.POST("/multi_key/manage", controller.ManageMultiKeys)
+			
+			// 动态权重相关路由
+			channelRoute.GET("/dynamic-metrics", controller.GetChannelDynamicMetrics)
+			channelRoute.GET("/dynamic-config", controller.GetDynamicWeightConfig)
+			channelRoute.PUT("/dynamic-config", middleware.RootAuth(), controller.UpdateDynamicWeightConfig)
+			channelRoute.POST("/trigger-recovery", middleware.RootAuth(), controller.TriggerTimeRecovery)
 		}
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())

@@ -86,6 +86,10 @@ func main() {
 		go model.SyncChannelCache(common.SyncFrequency)
 	}
 
+	// 初始化动态权重系统
+	model.InitDynamicWeight()
+	common.SysLog("dynamic weight system initialized")
+
 	// 热更新配置
 	go model.SyncOptions(common.SyncFrequency)
 

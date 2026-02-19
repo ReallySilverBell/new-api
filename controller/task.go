@@ -27,9 +27,14 @@ func UpdateTaskBulk() {
 	//imageModel := "midjourney"
 	for {
 		time.Sleep(time.Duration(15) * time.Second)
-		common.SysLog("任务进度轮询开始")
 		ctx := context.TODO()
 		allTasks := model.GetAllUnFinishSyncTasks(constant.TaskQueryLimit)
+		
+		// 只在有任务需要处理时才记录日志
+		if len(allTasks) > 0 {
+			common.SysLog(fmt.Sprintf("发现 %d 个未完成任务，开始轮询更新", len(allTasks)))
+		}
+		
 		platformTask := make(map[constant.TaskPlatform][]*model.Task)
 		for _, t := range allTasks {
 			platformTask[t.Platform] = append(platformTask[t.Platform], t)
@@ -67,7 +72,6 @@ func UpdateTaskBulk() {
 
 			UpdateTaskByPlatform(platform, taskChannelM, taskM)
 		}
-		common.SysLog("任务进度轮询完成")
 	}
 }
 

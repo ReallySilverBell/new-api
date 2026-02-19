@@ -142,13 +142,36 @@ func GetRandomSatisfiedChannel(group string, model string, retry int) (*Channel,
 	targetPriority := int64(sortedUniquePriorities[retry])
 
 	// get the priority for the given retry number
-	var sumWeight = 0
-	var targetChannels []*Channel
+	var sumEffectiveWeight = 0
+	type ChannelWithWeight struct {
+		Channel         *Channel
+		EffectiveWeight int
+	}
+	var targetChannels []*ChannelWithWeight
+
 	for _, channelId := range channels {
 		if channel, ok := channelsIDM[channelId]; ok {
 			if channel.GetPriority() == targetPriority {
-				sumWeight += channel.GetWeight()
-				targetChannels = append(targetChannels, channel)
+				// 获取静态权重
+				staticWeight := channel.GetWeight()
+				if staticWeight == 0 {
+					staticWeight = 100 // 默认权重
+				}
+
+				// 获取动态权重因子
+				dynamicFactor := GetDynamicFactor(channelId)
+
+				// 计算有效权重
+				effectiveWeight := int(float64(staticWeight) * dynamicFactor)
+				if effectiveWeight < 1 {
+					effectiveWeight = 1 // 最低保证1，避免完全饿死
+				}
+
+				sumEffectiveWeight += effectiveWeight
+				targetChannels = append(targetChannels, &ChannelWithWeight{
+					Channel:         channel,
+					EffectiveWeight: effectiveWeight,
+				})
 			}
 		} else {
 			return nil, fmt.Errorf("数据库一致性错误，渠道# %d 不存在，请联系管理员修复", channelId)
@@ -159,31 +182,18 @@ func GetRandomSatisfiedChannel(group string, model string, retry int) (*Channel,
 		return nil, errors.New(fmt.Sprintf("no channel found, group: %s, model: %s, priority: %d", group, model, targetPriority))
 	}
 
-	// smoothing factor and adjustment
-	smoothingFactor := 1
-	smoothingAdjustment := 0
-
-	if sumWeight == 0 {
-		// when all channels have weight 0, set sumWeight to the number of channels and set smoothing adjustment to 100
-		// each channel's effective weight = 100
-		sumWeight = len(targetChannels) * 100
-		smoothingAdjustment = 100
-	} else if sumWeight/len(targetChannels) < 10 {
-		// when the average weight is less than 10, set smoothing factor to 100
-		smoothingFactor = 100
+	if sumEffectiveWeight == 0 {
+		sumEffectiveWeight = len(targetChannels)
 	}
 
-	// Calculate the total weight of all channels up to endIdx
-	totalWeight := sumWeight * smoothingFactor
+	// Generate a random value in the range [0, sumEffectiveWeight)
+	randomWeight := rand.Intn(sumEffectiveWeight)
 
-	// Generate a random value in the range [0, totalWeight)
-	randomWeight := rand.Intn(totalWeight)
-
-	// Find a channel based on its weight
-	for _, channel := range targetChannels {
-		randomWeight -= channel.GetWeight()*smoothingFactor + smoothingAdjustment
+	// Find a channel based on its effective weight
+	for _, cw := range targetChannels {
+		randomWeight -= cw.EffectiveWeight
 		if randomWeight < 0 {
-			return channel, nil
+			return cw.Channel, nil
 		}
 	}
 	// return null if no channel is not found

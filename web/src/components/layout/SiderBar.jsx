@@ -33,6 +33,7 @@ import { Nav, Divider, Button } from '@douyinfe/semi-ui';
 const routerMap = {
   home: '/',
   channel: '/console/channel',
+  dynamicWeight: '/console/dynamic-weight',
   token: '/console/token',
   redemption: '/console/redemption',
   topup: '/console/topup',
@@ -150,6 +151,12 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('渠道管理'),
         itemKey: 'channel',
         to: '/channel',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('动态权重'),
+        itemKey: 'dynamicWeight',
+        to: '/dynamic-weight',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

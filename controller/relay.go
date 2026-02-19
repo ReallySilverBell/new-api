@@ -211,6 +211,12 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		if newAPIError == nil {
+			// 请求成功，更新动态权重
+			staticWeight := channel.GetWeight()
+			if staticWeight == 0 {
+				staticWeight = 100
+			}
+			model.OnChannelSuccess(channel.Id, channel.Name, int(staticWeight))
 			return
 		}
 
@@ -344,6 +350,20 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 
 func processChannelError(c *gin.Context, channelError types.ChannelError, err *types.NewAPIError) {
 	logger.LogError(c, fmt.Sprintf("channel error (channel #%d, status code: %d): %s", channelError.ChannelId, err.StatusCode, err.Error()))
+	
+	// 判断是否应该惩罚（降低动态权重）
+	shouldPenalize := service.ShouldPenalizeError(err)
+	
+	// 更新动态权重
+	channel, getErr := model.GetChannelById(channelError.ChannelId, false)
+	if getErr == nil {
+		staticWeight := channel.GetWeight()
+		if staticWeight == 0 {
+			staticWeight = 100
+		}
+		model.OnChannelFailure(channelError.ChannelId, channelError.ChannelName, int(staticWeight), shouldPenalize)
+	}
+	
 	// 不要使用context获取渠道信息，异步处理时可能会出现渠道信息不一致的情况
 	// do not use context to get channel info, there may be inconsistent channel info when processing asynchronously
 	if service.ShouldDisableChannel(channelError.ChannelType, err) && channelError.AutoBan {
